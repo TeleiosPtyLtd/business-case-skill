@@ -1,0 +1,17 @@
+{
+  "name": "teleios",
+  "owner": {
+    "name": "Teleios",
+    "url": "https://teleios.au"
+  },
+  "metadata": {
+    "description": "Skills published by Teleios."
+  },
+  "plugins": [
+    {
+      "name": "business-case",
+      "source": "./",
+      "description": "Build interactive financial business cases through conversation with Claude Code (CBAgent)."
+    }
+  ]
+}
