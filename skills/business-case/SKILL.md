@@ -1,23 +1,20 @@
 ---
 name: business-case
-description: Use this skill whenever the user wants to build, edit, or share a CBAgent business case — i.e. an interactive financial model rendered in the CBAgent UI (NPV, BCR, IRR, value waterfall, timeline, sensitivity). Triggers include "build a business case for X", "model the financial impact of Y", "turn this proposal into a business case", "update the costs/benefits/assumptions", "regenerate the business case after this change", or any request that ends with the user wanting an interactive view of a decision's financial impact.
+description: Use this skill when the user wants to build, edit, or share a CBAgent business case — an interactive financial model rendered as a four-section proof (Now / And / Then / Risks). Triggers include "build a business case for X", "model the financial impact of Y", "turn this proposal into a business case", "update the assumptions/benefits/costs", or any request that ends with the user wanting an interactive page that walks a buyer through a decision's projected impact. Not for: static slides, audit-grade financial models (no tax/depreciation/working-capital), Monte Carlo simulation, or multi-stream P&L modelling.
 ---
 
 # CBAgent Business Case skill
 
 ## What you'll do
 
-The user has a public template repo. Your job, when they describe a project
-or decision, is to:
+When the user describes a project or decision:
 
 1. **Clone the template** into a working directory.
-2. **Author `project.config.js`** through the six-phase loop in Step 2 —
-   every cost, benefit, assumption, and scenario lives in this file.
-3. **Pre-flight** — run the validator + critique gates in Step 3.
-4. **Run and share** — start `live-server`, point the user at the URL.
+2. **Author `project.config.js`** — the only file that carries case data. The engine, UI, and exports are already generic.
+3. **Pre-flight** — validator + critique pass.
+4. **Run** — `live-server`, point them at the URL.
 
-Don't touch `src/`, `src2/`, or `index.html` unless the user explicitly asks
-for new visual capability — the engine is already generic.
+Don't touch `src/`, `src2/`, `index.html`, or any other source file unless the user explicitly asks for new visual capability.
 
 ## TEMPLATE_REPO
 
@@ -25,13 +22,11 @@ for new visual capability — the engine is already generic.
 git@github.com:TeleiosPtyLtd/business-case.git
 ```
 
-Fallback (HTTPS, public clone):
-`https://github.com/TeleiosPtyLtd/business-case.git`.
+Public-clone fallback: `https://github.com/TeleiosPtyLtd/business-case.git`.
 
 ## Step 1 — Clone
 
-If the user hasn't specified a directory, derive a short slug from the
-project name (`acme-pricing-tool`, `gpu-cluster-2026`, etc.):
+Derive a short slug from the project name (`acme-pricing-tool`, `gpu-cluster-2026`):
 
 ```sh
 git clone --depth 1 git@github.com:TeleiosPtyLtd/business-case.git ./<slug>
@@ -39,297 +34,423 @@ cd ./<slug>
 rm -rf .git
 ```
 
-If the directory already exists with a `project.config.js`, **don't
-re-clone** — the user is iterating, just edit.
+If `<slug>/project.config.js` already exists, **edit instead of re-cloning**.
 
-## Step 2 — Author `project.config.js` (six-phase loop)
+## Step 2 — Understand the page so you can author for it
 
-Most BCs fail at the early phases, not at the math. Don't skip them.
+The page is a four-section rhetorical proof. Your config drives each section directly. Knowing what each section *does* tells you what each field is *for*.
 
-### Phase 1 — Frame the decision
+### Now
+The buyer confirms the world they live in. Surfaces the **top 3 world-fact assumptions** (those with `controllable: false`, ranked by scope-1 sensitivity) and a live equation derived from `baseline[]` that shows what those assumptions imply about today (e.g. *"Your annual revenue today"* = proposals × win-rate × fee = $300k/yr). Each row has a *Sounds right* button. Once all three are confirmed, a *Let's proceed* button reveals the rest of the page.
 
-Before any numbers, establish *what is being chosen between* — value is
-*delta*, not absolute. Five fields, all required:
+### And
+What you commit to change. Surfaces the **top 3 commitment assumptions** (those with `controllable: true`, ranked by scope-1 sensitivity). Each row has an *Okay* button. Beneath, two subtotals derived from the scope-1 quantitative benefits:
+- `+X% change to your annual revenue (+$Y/yr)` — sum of `revenue_uplift` items as a % of the `kind: "revenue"` baseline.
+- `$Z/yr recurring cost savings` — sum of `cost_saving` items.
 
-- **The counterfactual.** Not "doing nothing" — usually "the cheapest
-  credible alternative" (a different vendor, an internal team, a partial
-  scope). The honest comparator.
-- **Decision audience.** A CFO needs different rigor than a champion's
-  internal slide deck.
-- **Time horizon, with a reason.** Why 7 years? Contract length? Tech
-  lifecycle? Strategic plan? The number must come from somewhere.
-- **Who pays vs who captures.** Agency mismatches (org A pays, org B
-  benefits) often kill an otherwise "good" project.
-- **What "yes" actually unlocks.** Often the early phases are infrastructure
-  and the later phases unlock the bigger value but are conditional.
+A *Show the math* toggle reveals the per-benefit multiplication chains.
 
-If any of these five are unclear from the user's brief, **ask them in a
-single combined message** before writing the config — don't five-question
-them. Then write the answers into `meta.description` so the framing is
-visible at the top of the page.
+### Then
+The outcome. Three rows — Benefits / Costs / Total — with NPV pinned at the bottom and BCR/IRR as supporting figures.
 
-### Phase 2 — Decompose each benefit (first principles)
+### Risks
+Bare-titles disclosure list. Each risk states one thing that could go wrong, grouped by `locus` (`"commitment"` = under our control, `"world"` = shared). No mitigation copy — that's implementation detail and lives in the proposal, not the BC.
 
-For every candidate benefit, derive a four-step value chain:
+## Voice & writing rules
+
+**Read this before writing any field.** The buyer reads the page literally, on one pass, without a finance background. Every word that asks them to translate is a word they won't pay for. This applies to *every* user-facing string — `meta.description`, item `name`, item `desc`, assumption `label`, assumption `description`, baseline `label`, risk `title`. Don't relax it for any field.
+
+### Who reads this
+
+A small-business owner, founder, principal, or department head. They:
+
+- **Know**: their own business. Revenue, costs, deals won and lost, team hours, customers, day-to-day operations. They have language for all of it — usually different from yours.
+- **Don't know**: finance vocabulary (NPV, IRR, BCR, payback period, EBITDA, COGS), modelling concepts (sensitivity, attribution, counterfactual capture), consulting jargon (uplift, leverage, value framing, throughput, capacity, synergy), or notation that requires effort (Δ, basis points, multi-clause formulas).
+
+The page's voice should sound like a competent colleague talking to them at lunch. Not a McKinsey deck. Not a research paper. Not the Excel ribbon. The math is auditable behind a *Show the math* toggle, so the surface text doesn't need to prove rigour — it needs to be readable.
+
+### Vocabulary to drop, and what to use instead
+
+| ✗ Don't write | ✓ Write |
+|---|---|
+| Uplift | Lift, raise, increase, more |
+| Optimise | Improve, raise, fix |
+| Leverage | Use, lean on, take advantage of |
+| Drive (as verb) | Make, cause, produce |
+| Capture / accrue | Get, keep, earn |
+| Realise (as in "realise value") | Show up, land |
+| Operationalise | Put into practice, use it |
+| Throughput | Deals won, hours billed, units sold — name the actual unit |
+| Capacity | Hours, time, people |
+| Engagement | Project, deal, contract — whatever they call it |
+| Stakeholder | Owner, manager, client, sponsor — name the role |
+| FTE / headcount | People, employees, team members |
+| KPI / metric | Number, target, result |
+| Workflow / process | The way you do X |
+| Pipeline | Deals in progress, future work |
+| Cross-functional / matrixed | Across the team |
+| Holistic / end-to-end | (don't — they're filler) |
+| Scalable | Works as you grow |
+| Mission-critical / best-in-class | (don't — they're filler) |
+| Buy-in | Support from the people involved |
+| Loaded rate | Your hourly cost |
+| Cost basis | Hours × rate, what it costs you to do it |
+| Value-framing / outcome-anchored | Selling on results, charging for outcomes |
+| Adoption | Whether your team actually uses it |
+| Counterfactual | What would happen anyway |
+| Baseline | Current, today's, where things sit now |
+| Synergy | (just don't) |
+| Δ, ↑, pp, bps | Spell it out: "change in", "increase of", "percentage points", "hundredths of a percent" |
+| NPV / BCR / IRR | Don't write these in user-facing strings. The page expands them in the table with definitions on hover. |
+
+### Naming patterns
+
+**Item names** read literally — they appear in the Then table, in audit-trail rows, and in subtotal labels. Write a short sentence the buyer would say out loud.
+
+| ✗ | ✓ |
+|---|---|
+| Pricing uplift from value framing | Higher prices on each deal you win |
+| Win-rate uplift from rigour signal | Winning more deals |
+| Onboarding time saved on won deals | Less time aligning scope at kickoff |
+| Mid-engagement rework avoided | Less mid-project rework |
+| Premium inbound from reputation | Better leads coming in |
+| Lower marketing cost via referrals | Lower marketing spend |
+| Y1 process setup | One-time setup in year 1 |
+| BC authoring time per proposal | Time spent on each business case |
+
+**Assumption labels** appear in NOW rows (world facts the buyer confirms) and AND rows (commitments the buyer acknowledges), each next to an editable value field. The label should read as "the thing this number measures" — in the buyer's words.
+
+| ✗ | ✓ |
+|---|---|
+| Baseline win rate | Current win rate |
+| Average engagement fee | Typical deal size |
+| Principal loaded rate | Your hourly cost |
+| Pricing uplift from value framing | Price lift on each won deal |
+| Win-rate uplift (percentage points) | Win-rate increase |
+| Onboarding hours saved per won deal | Kickoff hours saved per deal |
+| BC hours per proposal | Hours per business case |
+| Referral velocity uplift | Increase in referrals |
+| Annual marketing cost reduction | Marketing spend saved |
+| One-off setup hours (Y1) | Year-1 setup hours |
+
+**Risk titles** state in plain language *what could actually go wrong*. Not what gets falsified. Not what metric drifts. What happens in the buyer's world on a Tuesday morning.
+
+| ✗ | ✓ |
+|---|---|
+| Implementation effort exceeds the steady-state estimate | Writing business cases keeps taking longer than 4 hours |
+| Sophisticated buyers reject value framing | Buyers refuse to pay on outcomes — they want a day rate |
+| Reputation effects don't compound | Nobody outside the engagement notices the methodology |
+| Selection bias in the BC filter | We use the BC to talk ourselves into a bad engagement |
+| Adoption risk on the new workflow | The team doesn't use it after the first month |
+
+The bad versions describe a metric or a hypothesis. The good versions describe an event.
+
+**Descriptions** — `description` on assumptions, `desc` on items — are 1–2 sentences shown on hover/focus and in popovers. Plain language explaining the actual mechanism. Not marketing copy. Not a rationale paragraph.
+
+| ✗ | ✓ |
+|---|---|
+| Pricing uplift driven by value-anchored conversations leveraging methodological rigour. | Clients pay more when the conversation is about outcomes, not hours. Typical lift on won deals is 12–18%. |
+| Optimises proposal authoring throughput via templated frameworks. | Each business case takes ~4 hours once you have a few templates. The first few take 6–8. |
+| Engagement value will be captured at higher fee levels post-implementation. | You'll charge more per deal. |
+
+### Active voice, concrete subject
+
+The buyer prefers sentences where someone *does* something.
+
+| ✗ Passive / abstract | ✓ Active / concrete |
+|---|---|
+| Engagement value will be captured | You'll charge more per deal |
+| Operational efficiencies are realised | You spend less time on kickoff |
+| Adoption risk threatens benefit accrual | If the team doesn't use it, the savings don't show up |
+| Reputation effects compound over time | Word-of-mouth brings in better-quality leads |
+| Cash savings are predicated on overlap mitigation | These savings only land if another initiative isn't already booking them |
+
+### Stress test before declaring done
+
+Read every assumption label, item name, and risk title out loud. Ask three questions:
+
+1. **Would a non-financial business owner repeat this exact wording when describing the project to a friend at the pub?** If no, simplify.
+2. **Does any word in it require translation?** *Uplift* requires translation. *Lift* doesn't. *Stakeholder* requires translation. *Owner* doesn't. Replace until none do.
+3. **Does it describe an event that happens, or a metric that's measured?** Events win. *"Buyers refuse to pay on outcomes"* > *"Pricing elasticity failure"*.
+
+If a string fails any of those three, rewrite before moving on. Don't ship "almost-plain" — it reads as worse than fully technical, because the inconsistency makes the buyer doubt the rest.
+
+## Step 3 — Author `project.config.js`
+
+Most BCs fail at the early steps, not at the math. Work through these in order.
+
+### A. Frame the decision (ask once)
+
+Before any numbers, five facts must be clear. If any are unclear from the user's brief, **ask all of them in a single combined message**:
+
+- **The counterfactual.** Not "doing nothing" — usually "the cheapest credible alternative" (a different vendor, an internal team, a partial scope). The honest comparator.
+- **Decision audience.** A CFO needs different rigour than a champion's slide deck. The audience shapes the voice; don't drift mid-document.
+- **Time horizon, with a reason.** Why 3 years? Contract length? Tech lifecycle? Strategic plan? The number must come from somewhere.
+- **Who pays vs. who captures.** Agency mismatches (org A pays, org B benefits) kill otherwise-good projects.
+- **What "yes" unlocks.** Often the early work is infrastructure and the later phases unlock the bigger value but are conditional.
+
+Write the answers into `meta.description` so the framing is visible. Set `meta.shortName` — it's interpolated as the intervention's name everywhere.
+
+### B. Identify commitments vs. world facts
+
+Every numeric input is one of two things:
+
+- **World fact** (`controllable: false` or absent) — something *about* the buyer's business that the intervention doesn't change. Examples: proposals per year, current win rate, average deal size, hourly cost of staff. The buyer confirms these in Now.
+- **Commitment** (`controllable: true`) — an outcome the intervention *moves*, by promise. Examples: pricing lift %, win-rate boost in pp, hours saved per deal, new vendor cost per year. The buyer acknowledges these in And.
+
+Tag every assumption. Misclassifying wrecks the Now/And distinction.
+
+### C. Define the baseline expression
+
+Write at least one `baseline[]` entry — what the world facts imply about the business today. The Now section renders it as a live multiplication chain that fills in as the buyer confirms each input.
+
+```js
+{
+  label: "Your annual revenue today",
+  formula: "proposals_per_year * (baseline_win_rate / 100) * avg_engagement_fee",
+  unit: "$/yr",
+  kind: "revenue",
+}
+```
+
+`kind: "revenue"` makes this the denominator for the *% change to annual revenue* subtotal in And. If the case is primarily cost reduction, add a second entry with `kind: "cost"` so the cost-saving subtotal can also render as a percentage.
+
+The formula uses the same syntax as `item.gross` — a product of assumption ids, with the same sandboxed helpers.
+
+### D. Compose benefits and costs
+
+For every item, write the four-step value chain in `desc`:
 
 ```
 project action → what changes in the world → how that becomes $ → who captures it
 ```
 
-Example (better baggage data):
+Example:
+
 ```
-better evidence per dispute  →  more disputes contested successfully
-                             →  fewer rebate $ paid + faster resolution time
-                             →  PA opex (rebates) + AOC capacity (hours)
+better evidence per dispute → more disputes contested successfully
+                            → fewer rebate $ paid + faster resolution time
+                            → PA opex (rebates) + AOC capacity (hours)
 ```
 
-The chain is the **mechanism**. Every item's `desc` field must name it
-(1-2 sentences). Then `gross` implements *that* chain — not a freelance
-formula. Models that collapse the chain into a single magic number lose
-the audit trail and can't be defended.
+The chain is the **mechanism**. `gross` implements *that* chain — not a freelance formula. Magic numbers without an audit trail can't be defended.
 
-Rules of thumb:
-- Cap total benefits at **≈8** so the stacked chart reads cleanly. Merge
-  granular wins into themed items ("Operational efficiency" rolls up
-  multiple small ops gains).
-- Costs and benefits should look symmetric in the drill-down — the engine
-  handles this; don't try to inject custom UI.
+**Rules of thumb:**
 
-### Phase 3 — Source & calibrate every belief
+- **≤8 benefits** total — the And breakdown reads cleanly at that count and below.
+- **Scope-1 benefits** (`scope: 1`) pay for the project on their own. Each Scope-1 benefit's `gross` must reference a commitment assumption (one with `controllable: true`) — otherwise the And section has nothing to anchor on.
+- **Scope-2 benefits** (`scope: 2`) are adjacent, secondary. Real but less directly attributable.
+- **Scope-3 benefits** (`scope: 3`) are downstream / strategic. Hardest to attribute.
+- **Costs** have no scope. Always counted. Use `lump: true` for one-off setup costs, `lump: false` for recurring.
+- Every numeric benefit declares its `benefitKind`: `"revenue_uplift"`, `"cost_saving"`, or `"qualitative"`.
+- Qualitative benefits have `gross: "0"`.
+- **Plain-language naming.** Every `name`, `label`, `title`, `desc`, and `description` follows the *Voice & writing rules* above. Don't relax for cost items, qualitative benefits, or scope-2/3 items — same rule everywhere.
 
-Every numeric input gets *one* of these sources, in priority order:
+### E. Source every belief
+
+Every numeric assumption gets *one* of these sources, in priority order:
 
 | Source | When | What you do |
 |---|---|---|
-| **Internal data** | The user's org has it | **Ask them.** "Do you have FY24 dispute count? If not, an order-of-magnitude is fine — I'll flag." |
-| **Authoritative external** | Public benchmark exists | **Run a web search.** Industry reports, regulator filings, peer-reviewed sources. Cite the URL in `source`. |
-| **Vendor proposal** | Vendor stated the number | Cite verbatim, flag bias: `source: "Teleios proposal v2 (vendor-stated)"`. |
-| **First-principles Fermi** | No data, but decomposition works | Show the working in `rationale`: `30 incidents × 4 hrs × $80/hr` — not just `9600`. |
-| **`[CONFIRM]`** | Nobody knows yet | Flag explicitly: `source: "[CONFIRM] needs ops budget review"`. The validator surfaces these. |
+| **Internal data** | The user's org has it | Ask them — *"Do you have FY24 dispute count? Order-of-magnitude is fine, I'll flag."* |
+| **Authoritative external** | Public benchmark exists | Run `WebSearch`. Industry reports, regulator filings, peer-reviewed. Cite the URL in `source`. |
+| **Vendor proposal** | Vendor stated it | Cite verbatim, flag bias: `source: "Teleios proposal v2 (vendor-stated)"`. |
+| **Fermi decomposition** | No data but decomposition works | Use the structured `fermi[]` field — `[{ label: "...", value: ..., source: "..." }]` — not a single rolled-up number. The provenance popover renders it. |
+| **`[CONFIRM]`** | Nobody knows yet | Flag explicitly: `source: "[CONFIRM] needs ops budget review"`. |
 
-Online research is **encouraged** for industry benchmarks, regulator
-filings, and macro inputs (discount rates, inflation, sector cost
-structures). Use the `WebSearch` tool. Search template:
+**Batch your questions.** One message with three precise questions beats three rounds of one-question asks. Template:
 
-> "Find a 2023+ benchmark for `<metric>` in `<industry/geography>`. I need:
-> (1) the typical value, (2) the range across comparable orgs, (3) a source
-> I can cite — peer-reviewed or industry-standard preferred."
+> *"To make these estimates solid I need three things you'll know: (1) ____, (2) ____, (3) ____. If you don't have one, I'll proceed with my Fermi estimate and flag it."*
 
-Cite the source in the assumption's `source` field. If results are thin or
-contradictory, prefer the lower estimate and note the uncertainty in
-`rationale`.
+**Web search template** for industry benchmarks:
 
-When asking the user, batch your questions. One message with three precise
-questions beats three rounds of one-question asks. Template:
+> *"Find a 2023+ benchmark for `<metric>` in `<industry/geography>`. I need: (1) the typical value, (2) the range across comparable orgs, (3) a source I can cite — peer-reviewed or industry-standard preferred."*
 
-> "To make these estimates solid I need three things you'll know: (1)
-> `<datum 1>`, (2) `<datum 2>`, (3) `<datum 3>`. If you don't have one, I'll
-> proceed with my Fermi estimate and flag `[CONFIRM]`."
+If results are thin or contradictory, prefer the lower estimate and note the uncertainty in `description`.
 
-**Range calibration.** For each belief, set `sensitivityRange: { lo, hi }`
-based on a *coherent low/high case*, not a generic ±25%. Lo is the value
-a sceptical CFO would defend; hi is the value the champion would defend.
-Probability beliefs (ids ending `_prob`) get tighter ranges that respect
-0–100.
+**Sensitivity range.** Set `sensitivityRange: { lo, hi }` per assumption based on a *coherent low/high case*, not a generic ±25%. Lo is what a sceptical CFO would defend; hi is what the champion would defend. The page uses these for sensitivity attribution and as soft editor bounds.
 
-### Phase 4 — Compose items with mandatory critique
+### F. Critique your own items
 
-Each item carries:
+Each item must carry **≥3 specific attacks** as comments above it in `project.config.js`. The 10 lenses (pick the 3–5 most apt per item):
 
-- `gross` — the formula implementing the value chain from Phase 2.
-- `overlap`, `counterfactual`, `cashRealisation` — each justified in
-  `desc` or in inline reasoning, not just numbers.
-- `critiques: [str, str, str]` — **at least three specific attacks** drawn
-  from the lenses below.
-
-The 10 critique lenses (pick the 3–5 most apt per item):
-
-1. **Counterfactual capture** — does a cheaper alt do most of this anyway?
+1. **Counterfactual capture** — does the cheapest credible alternative do most of this anyway?
 2. **Overlap** — is another initiative already booking part of this benefit?
-3. **Cash vs soft** — does the dollar leave a budget line, or is it freed
-   time that gets reabsorbed?
+3. **Cash vs. soft** — does the dollar leave a budget line, or is it freed time that gets reabsorbed?
 4. **Adoption** — built ≠ used. What drives uptake?
-5. **Phase risk** — how conditional is this on prior phases landing?
+5. **Phase risk** — how conditional on prior phases landing?
 6. **Time-of-arrival** — what if it lands a year later than modelled?
-7. **Behavioural absorption** — gains spent on more activity, not banked.
-8. **Selection bias** — modelling on the average case or the marginal case?
+7. **Behavioural absorption** — are gains spent on more activity rather than banked?
+8. **Selection bias** — modelling the average case or the marginal case?
 9. **Dependency** — what if the vendor / champion / sponsor leaves?
-10. **Externalities** — costs imposed on others (training, disruption,
-    opportunity).
+10. **Externalities** — costs imposed on others (training, disruption, opportunity).
 
-Critiques must be **specific**. Bad: "this might not deliver as expected".
-Good: "Code 87 dispute success depends more on legal precedent in airline
-contracts than on data quality — better evidence is necessary but not
-sufficient without legal-team capacity to act on it."
+Critiques must be **specific**. Bad: *"this might not deliver as expected"*. Good: *"Code 87 dispute success depends more on legal precedent in airline contracts than on data quality — better evidence is necessary but not sufficient without legal-team capacity to act on it."*
 
-The critiques live as comments above the item in `project.config.js` (the
-schema doesn't currently have a critiques field; comments are the carrier).
+### G. Write risks
 
-### Phase 5 — Pressure-test the model
+Three to five risks total. Each names *one thing that could go wrong*, in plain language a non-financial buyer would parse. **Title-only** — no mitigation, signal, trigger, or owner copy. Mitigation lives in the proposal, not the BC.
 
-**Scenarios as narratives, not knob-twists.** Three scenarios:
+```js
+risks: [
+  { title: "Writing business cases keeps taking longer than 4 hours",
+    locus: "commitment",
+    threatens: "bc_hrs_per_proposal" },
+  { title: "Buyers refuse to pay on outcomes — they want a day rate",
+    locus: "world",
+    threatens: "pricing_uplift_pct" },
+]
+```
 
-- **Conservative** — a steelman bear case. Internally consistent: lower
-  scale + lower phase delivery + higher counterfactual capture.
-- **Central** — best evidence right now.
-- **Optimistic** — a steelman bull case. Likewise coherent.
+`locus` is either `"commitment"` (the implementer is accountable) or `"world"` (the world or the buyer could introduce it). `threatens` points at the assumption id the risk would falsify; the page filters risks to those relevant to scope-1.
 
-Write a one-sentence story for each in `desc` describing the world it
-lives in.
+### H. Self-critique pass — `CRITIQUE.md`
 
-**Self-critique pass.** Before declaring done, read your own model and
-answer in writing — produce a `CRITIQUE.md` next to `project.config.js`:
+Before declaring done, produce `CRITIQUE.md` next to `project.config.js` answering in writing:
 
-1. *What's the weakest belief?* (Lowest source quality × biggest NPV
-   impact — top of the sensitivity tornado with weakest `source`.)
+1. *What's the weakest belief?* (Lowest source quality × biggest NPV impact.)
 2. *What's the most likely double-count?*
-3. *Where is "soft" smuggled into "cash"?*
-4. *What single dependency, if it slipped, would change the conclusion?*
+3. *What single dependency, if it slipped, would change the conclusion?*
 
-**Sensitivity sanity check.** When the user opens the page, check that
-the top 5 levers in the Summary tornado match what theory predicts. If
-they don't (e.g. discount rate dominating an annuity-heavy model is
-expected; an obscure ops parameter dominating is suspicious), the model
-has a structural problem — fix it before sharing.
+These are the questions a CFO will ask. Better to find them yourself first.
 
-### Phase 6 — Pre-flight checklist
+### I. Pre-flight checklist
 
 Hard gates before declaring done:
 
-- Every assumption has `source`, `rationale`, `description`, and
-  `sensitivityRange`. None empty.
-- Every item has a value-chain `desc` and ≥3 specific critiques (as
-  comments above the item).
-- `CRITIQUE.md` exists and names the weakest belief by id.
-- The runtime validator banner is clean.
-- Top 5 sensitivity levers reviewed and match theory.
+- `meta.shortName` set — interpolated as the intervention's name throughout.
+- `meta.description` written, frames the decision (counterfactual / audience / horizon / payer-vs-capturer / what-yes-unlocks).
+- 1–3 benefits tagged `scope: 1`, each referencing a `controllable: true` assumption in its `gross`.
+- At least one `baseline[]` entry with `kind: "revenue"`. Add `kind: "cost"` if the case is primarily cost reduction.
+- 3–5 risks defined, plain language, with `locus` and `threatens`.
+- Every assumption has: `source`, `description`, `sensitivityRange`, and a `controllable` flag (true or explicit false).
+- Every item has: a value-chain `desc`, `uses[]`, and ≥3 specific critiques as comments above it.
+- `CRITIQUE.md` exists.
+- ≤8 benefits.
+- Runtime validator banner clean.
 
 If a gate fails, fix it before telling the user it's done.
 
 ## Schema reference
+
+### `meta`
+
+```js
+meta: {
+  name: "Full project title",                        // long form
+  shortName: "BC discipline",                        // interpolated everywhere
+  description: "Paragraph that frames the decision.",
+}
+```
+
+### `horizon`
+
+Integer — number of years the model runs over. Drives NPV and the per-year cashflow series.
+
+### `baseline[]`
+
+Implied current-state expressions, rendered under Now as live multiplication chains.
+
+```js
+baseline: [
+  {
+    label: "Your annual revenue today",
+    formula: "proposals_per_year * (baseline_win_rate / 100) * avg_engagement_fee",
+    unit: "$/yr",
+    kind: "revenue",     // "revenue" → And uses this as the % denominator for revenue_uplift items
+                         // "cost"    → ditto for cost_saving items
+  },
+]
+```
+
+### `risks[]`
+
+```js
+risks: [
+  {
+    title: "Plain-language statement of what could go wrong.",
+    locus: "commitment" | "world",
+    threatens: "assumption_id",   // assumption this risk would falsify
+  },
+]
+```
 
 ### `assumptions[]`
 
 ```js
 {
   id: "snake_case_id",            // referenced in formula strings
-  label: "Human-readable label",
-  group: "Group name",            // groups together in the rail
-  value: 1500000,                 // numeric default
-  unit: "$" | "$/yr" | "%" | "events" | "yrs" | ...,
-  step: 50000,
-  icon: "IconDollar",             // see icon list below
-  domain: "internal" | "<vendor>.com",
-  source: "Short attribution",    // [CONFIRM] / vendor / URL / Fermi
-  description: "Plain-language definition. What is this and what does it mean?",
-  rationale:   "Modelling justification — why this number, with working if Fermi.",
-  sensitivityRange: { lo: 0.5, hi: 1.5 },   // multipliers on `value`
+  label: "Human-readable label",  // shown in Now / And rows and popovers — write for a non-financial reader
+  group: "Group name",            // groups together in the assumptions grid
+  value: 12,                      // numeric default
+  unit: "$" | "$/yr" | "$/hr" | "%" | "pp" | "hrs" | "/yr" | "/mo" | "events" | "yrs",
+  step: 1,                        // editor step
+  icon: "IconDollar",             // see icons below
+
+  source: "Short attribution.",   // [CONFIRM] / vendor / URL / Fermi summary
+  fermi: [                        // optional structured decomposition; rendered in provenance popover
+    { label: "Active months/yr", value: 12, source: "Calendar." },
+    { label: "Proposals/month",  value: 1,  unit: "/mo", source: "FY24 pipeline log." },
+  ],
+  description: "Plain-language definition. What is this, and why this value? One to two sentences.",
+
+  controllable: true,             // true → commitment (And row); false/missing → world fact (Now row)
+
+  sensitivityRange: { lo: 0.5, hi: 2.0 },   // multipliers on `value`; drives sensitivity attribution + soft editor bounds
 }
 ```
 
-Both `description` AND `rationale` are required for every assumption.
-
-Available icons: `IconDollar`, `IconUsers`, `IconPercent`, `IconBuilding`,
-`IconClock`, `IconBolt`, `IconShield`, `IconTrend`, `IconLeaf`, `IconCube`.
-
-Probabilities: ids ending in `_prob`, values 0..100 (validator enforces).
+Icons: `IconDollar`, `IconUsers`, `IconPercent`, `IconBuilding`, `IconClock`, `IconBolt`, `IconShield`, `IconTrend`, `IconLeaf`, `IconCube`.
 
 ### `items[]`
 
 ```js
 {
-  id:   "unique_id",
-  name: "Item name",
+  id: "unique_id",
+  name: "Plain-language item name.",     // a non-financial reader parses this literally
   kind: "cost" | "benefit",
-  category: "ops" | "capacity" | "commercial" | "reuse"
-          | "cost_pri" | "cost_run" | "cost_int",
+  scope: 1 | 2 | 3,                       // benefit only; absent on costs
 
-  lump:      false,        // true → one-off in startYear; false → annuity
-  startYear: 1,            // 1-indexed
-  phase:     2,            // 0..4. Costs use phase 0 (always realise).
+  benefitKind: "revenue_uplift" | "cost_saving" | "qualitative",
+                                          // qualitative items have gross: "0"
 
-  // Formula string, sandboxed: only assumption ids, math helpers (pow, min,
-  // max, abs, log, sqrt, exp, floor, ceil, round, PI, E), numeric literals,
-  // and operators + - * / ( ) , . are allowed.
-  gross: "events_per_year * hours_per_event * loaded_rate
-        + exposure_pool * recovery_fraction",
+  lump: false,                            // true → one-off in startYear; false → recurring across horizon
+  startYear: 1,                           // 1-indexed
 
-  overlap:        0.10,    // 0..1, fraction already counted by other initiatives
-  counterfactual: 0.20,    // 0..1, fraction captured without this work
-  cashRealisation: 0.70,   // 0..1, fraction realised as cash (vs soft / freed time)
+  // Formula string, sandboxed. Allowed: assumption ids, math helpers
+  // (pow, min, max, abs, log, sqrt, exp, floor, ceil, round, PI, E),
+  // numeric literals, operators + - * / ( ) , .
+  gross: "proposals_per_year * (baseline_win_rate/100) * avg_engagement_fee * (pricing_uplift_pct/100)",
 
-  horizonOverride: "contract_remaining_years",  // optional id capping annuity duration
-
-  desc: "1-2 sentence value-chain mechanism (Phase 2). Shown in drill-down.",
-  uses: ["assumption_ids", "that", "drive", "this"],   // for UI badges
+  desc: "1–2 sentence value-chain mechanism (project action → world change → $ → who captures).",
+  uses: ["proposals_per_year", "baseline_win_rate", "avg_engagement_fee", "pricing_uplift_pct"],
 }
 ```
 
-Engine math: `gross × (1 - overlap) × cumulativePhaseProb × (1 - counterfactual)
-→ split into cash + soft`.
+**Engine math.** `gross(A)` is evaluated per year. If `lump: true`, the value sits in `startYear` only. If `lump: false`, it repeats from `startYear` through the horizon. PV is the sum of yearly values discounted by the `discount_rate` assumption. **No risk-adjustment waterfall, no cash/soft split — what `gross` produces is the value.** If you need risk-adjusted figures, encode the adjustment into the assumption values directly (e.g. multiply `pricing_uplift_pct` by an adoption probability).
 
-### Scenarios
-
-```js
-scenarios: {
-  central:      { label, desc, overrides: {}, counterfactualShift: 0 },
-  conservative: { label, desc, overrides: { id: value, ... },
-                  counterfactualShift: 0.15,
-                  itemOverrides: { item_id: { cashRealisation: 0.5, ... } } },
-  optimistic:   { label, desc, overrides: { ... }, counterfactualShift: -0.10 },
-}
-```
-
-`counterfactualShift` adds (clamped 0..1) to every item's `counterfactual`.
-`itemOverrides[item_id]` patches per-item parameters per scenario.
-
-## Step 3 — Validate
-
-The runtime validator surfaces a banner at the top of the page when the
-config is broken. Pre-check:
-
-- Every `item.category` exists in `categoryColors`.
-- Every identifier in every `gross` formula is an assumption id or a
-  whitelisted math helper.
-- All `*_prob` values are 0..100.
-- `overlap`, `counterfactual`, `cashRealisation` are 0..1.
-- Item ids unique; both costs and benefits exist.
-
-Also run the Phase 6 critique gates manually before declaring done.
-
-## Step 4 — Run and share
+## Step 4 — Run
 
 ```sh
 cd <slug>
-npx live-server@1.2.2          # http://localhost:8080, opens browser
+npx live-server@1.2.2 > /tmp/live-server-<slug>.log 2>&1 &
 ```
 
-Save any file → browser reloads → new numbers. JSX is transpiled
-in-browser by Babel-standalone; no build pipeline.
+Browser opens at `http://localhost:8080`. Save any file → reload → new numbers. JSX is transpiled in-browser by Babel-standalone; no build pipeline.
 
-**Run `live-server` for the user** as a background process so it stays
-alive across turns, e.g.
-`npx live-server@1.2.2 > /tmp/live-server-<slug>.log 2>&1 &`. The browser
-opens automatically.
-
-Share is pre-wired to `https://models.teleios.au` via `share.config.js`.
-Click Share → password → upload → backend returns a `/view/{id}` URL.
+Share is pre-wired to `https://models.teleios.au` via `share.config.js`. Click Share → password → upload → backend returns a `/view/{id}` URL.
 
 ## Examples
 
-- `project.config.js` — placeholder template (generic assumption and item
-  names). Overwrite when authoring.
-- `examples/minimal.config.js` — smallest viable config (1 cost, 1 benefit).
+- `project.config.js` — placeholder template (generic names). Overwrite when authoring.
+- `examples/minimal.config.js` — smallest viable config (one cost, one benefit, one baseline, one risk).
 
-When in doubt, copy `examples/minimal.config.js` over `project.config.js`
-and grow from there.
+When in doubt, copy `examples/minimal.config.js` over `project.config.js` and grow from there.
 
-## Constraints from prior conversations
+## Hard constraints
 
-- **≤8 benefits** total — stacked chart readability.
-- **`description` AND `rationale`** required on every assumption (both,
-  not one).
-- **Costs and benefits visually symmetric** — engine handles this.
-- **Hover tooltips, Excel export** — already built; don't reinvent.
-- **Numbers should be reasonable and conservative** by default — better
-  to be defended than to be optimistic.
+- **≤8 benefits** total — And breakdown legibility.
+- **Every user-facing string passes the *Voice & writing rules* stress test.** Names, labels, titles, descriptions. No exceptions.
+- **Numbers default conservative** — better defended than optimistic. The page already lets the buyer dial up via the editor.
+- **Costs and benefits visually symmetric** — engine handles this; don't add custom UI.
+- **Don't reinvent UI** — hover tooltips, Excel/PDF export, sensitivity attribution, scope toggle, share are all already built.
