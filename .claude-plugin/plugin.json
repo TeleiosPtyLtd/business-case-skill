@@ -1,7 +1,7 @@
 {
   "name": "business-case",
   "version": "1.0.0",
-  "description": "Build interactive financial business cases through conversation with Claude Code. Generates a CBAgent project (NPV/BCR/IRR, value waterfall, sensitivity, password-shareable) from a project description.",
+  "description": "Build interactive financial business cases through conversation with Claude Code. Generates a CBAgent project (granularity-native cashflow, net cumulative + payback headline, sensitivity tornado, three scenarios, password-shareable) from a project description.",
   "author": {
     "name": "Teleios",
     "url": "https://teleios.au"
@@ -9,5 +9,5 @@
   "homepage": "https://github.com/TeleiosPtyLtd/business-case-skill",
   "repository": "https://github.com/TeleiosPtyLtd/business-case-skill",
   "license": "MIT",
-  "keywords": ["business-case", "finance", "npv", "decision-support", "cbagent", "teleios"]
+  "keywords": ["business-case", "cashflow", "payback", "decision-support", "cbagent", "teleios"]
 }

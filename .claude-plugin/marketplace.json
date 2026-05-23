@@ -11,7 +11,7 @@
     {
       "name": "business-case",
       "source": "./",
-      "description": "Build interactive financial business cases through conversation with Claude Code (CBAgent)."
+      "description": "Build interactive nominal-cashflow business cases through conversation with Claude Code (CBAgent). Net cumulative + payback over a granularity you pick (day/week/month/quarter/year)."
     }
   ]
 }

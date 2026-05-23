@@ -20,41 +20,60 @@ In Claude Code:
 Once installed, just describe a decision:
 
 > "Build a business case for replacing our annotation pipeline with an
-> AI-assisted workflow. $250k engagement, 3-year horizon, expect to save
-> ~$700k/yr in vendor fees once Phase 2 lands."
+> AI-assisted workflow. $250k upfront cost, we expect to save ~$60k/month
+> on vendor fees once Phase 2 lands six months in. Model it monthly over
+> 18 months."
 
 Claude will:
 
 1. Clone the template into `./<short-slug>/`.
-2. Author `project.config.js` — assumptions, items (costs/benefits), three
-   scenarios (Conservative / Central / Optimistic), and per-assumption
-   sensitivity ranges.
-3. Start `live-server` so the browser opens with hot reload.
-4. Tell you how to click Share to upload the snapshot to a hosted backend
+2. Pick a **granularity** (day / week / month / quarter / year) and **horizon**
+   (integer count of those periods) that matches how you think about the
+   decision.
+3. Author `project.config.js` — assumptions, items (costs/benefits), three
+   scenarios (Conservative / Central / Optimistic), per-assumption
+   sensitivity ranges, plain-language risk titles.
+4. Start `live-server` so the browser opens with hot reload.
+5. Tell you how to click Share to upload the snapshot to a hosted backend
    and get a password-protected viewer URL.
 
 ## What's inside the model
 
-- **NPV / BCR / IRR** with a 5-stage value waterfall per item: gross →
-  overlap → phase delivery probability → counterfactual capture → cash/soft
-  split.
-- **Three scenarios** with per-item parameter overrides.
-- **Sensitivity tornado** ranking the top 5 levers by NPV swing.
+- **Net cumulative + payback period** as the headline. The page is nominal
+  cashflows over your chosen timescale: "you net $X over the next {horizon}",
+  "payback at period N".
+- **Granularity-native authoring** — every assumption and every benefit/cost
+  formula is expressed per-period in the case's chosen unit. No
+  annualising, no monthly-vs-yearly fudging mid-case.
+- **Item deferral** — a benefit that kicks in five months late uses
+  `startPeriod: 6`. No ramp curves to tune; the timing is explicit.
+- **Three scenarios** with per-assumption overrides — Conservative /
+  Central / Optimistic.
+- **Sensitivity tornado** ranking the top 5 assumptions by net-cumulative
+  swing.
 - **Hover-aware stacked bar charts**, timeline view, full data tables, and
-  Excel-compatible CSV exports.
+  per-section drill-downs.
 - **Sandboxed formula compiler** — every assumption is a numeric input you
   edit live; every cost/benefit value is a JS expression referencing those
   inputs.
-- **Config validator** — surfaces a banner if probabilities fall out of
-  range, identifiers don't resolve, or required fields are missing.
+- **Config validator** — surfaces a banner when identifiers don't resolve,
+  required fields are missing, or legacy schema fields are present.
 
 ## What's outside
 
 This is decision-support, not an audit-grade financial model. The engine
-**doesn't** model: tax shields, depreciation/amortisation, inflation (real
-vs nominal), working capital, capex/opex distinction, or Monte Carlo
-simulation. If your CFO needs any of those, drop the CSV export into Excel
-for the final pass.
+**doesn't** model: NPV / IRR / discounted cashflow (deliberate — see below),
+tax shields, depreciation/amortisation, inflation (real vs nominal),
+working capital, capex/opex distinction, or Monte Carlo simulation. If
+your CFO needs any of those, take the snapshot into Excel for the final
+pass.
+
+**Why no NPV?** Most small/medium-business decisions are read in nominal
+dollars over a horizon the buyer already has in mind. The discount rate
+adds a knob nobody wants to defend and an answer that's harder to talk
+about. The page's job is to be readable end-to-end on one pass, not to
+satisfy a finance textbook. If you genuinely need NPV, model in your CFO's
+spreadsheet.
 
 ## Repo layout
 

@@ -41,14 +41,14 @@ If `<slug>/project.config.js` already exists, **edit instead of re-cloning**.
 The page is a four-section rhetorical proof. Your config drives each section directly. Knowing what each section *does* tells you what each field is *for*.
 
 ### Now
-The buyer confirms the world they live in. Surfaces the **top 3 world-fact assumptions** (those with `controllable: false`, ranked by scope-1 sensitivity) and a live equation derived from `baseline[]` that shows what those assumptions imply about today (e.g. *"Your annual revenue today"* = proposals × win-rate × fee = $300k/yr). Each row has a *Sounds right* button. Once all three are confirmed, a *Let's proceed* button reveals the rest of the page.
+The buyer confirms the world they live in. Surfaces the **top 3 world-fact assumptions** (those with `controllable: false`, ranked by scope-1 sensitivity) and a live equation derived from `baseline[]` that shows what those assumptions imply about today (e.g. *"Your monthly revenue today"* = deals × win-rate × fee = $25k/mo, in the case's granularity). Each row has a *Sounds right* button. Once all three are confirmed, a *Let's proceed* button reveals the rest of the page.
 
 ### And
 What you commit to change. Surfaces the **top 3 commitment assumptions** (those with `controllable: true`, ranked by scope-1 sensitivity). Each row has an *Okay* button. Beneath, two subtotals derived from the scope-1 quantitative benefits:
-- `+X% change to your annual revenue (+$Y/yr)` — sum of `revenue_uplift` items as a % of the `kind: "revenue"` baseline.
-- `$Z/yr recurring cost savings` — sum of `cost_saving` items.
+- A **% change to recurring revenue** (sum of `revenue_uplift` items as a fraction of the `kind: "revenue"` baseline) with the per-period dollar lift alongside.
+- A **per-period cost saving** (sum of `cost_saving` items).
 
-A *Show the math* toggle reveals the per-benefit multiplication chains.
+Both subtotals are read off the case's granularity (a monthly case shows monthly lift; a yearly case shows annual). A *Show the math* toggle reveals the per-benefit multiplication chains.
 
 ### Then
 The outcome. Three rows — Benefits / Costs / Net — with the headline pinned at the bottom: **net cumulative ($) over the horizon** and **payback period** (the period where cumulative net first crosses zero). No NPV/IRR/PV — the page is nominal cashflows over the buyer's chosen timescale.
@@ -220,15 +220,24 @@ Tag every assumption. Misclassifying wrecks the Now/And distinction.
 Write at least one `baseline[]` entry — what the world facts imply about the business today. The Now section renders it as a live multiplication chain that fills in as the buyer confirms each input.
 
 ```js
+// Monthly case
+{
+  label: "Your monthly revenue today",
+  formula: "deals_per_period * (baseline_win_rate / 100) * avg_deal_size",
+  unit: "$/mo",
+  kind: "revenue",
+}
+
+// Yearly case
 {
   label: "Your annual revenue today",
-  formula: "proposals_per_year * (baseline_win_rate / 100) * avg_engagement_fee",
+  formula: "proposals_per_period * (baseline_win_rate / 100) * avg_engagement_fee",
   unit: "$/yr",
   kind: "revenue",
 }
 ```
 
-`kind: "revenue"` makes this the denominator for the *% change to annual revenue* subtotal in And. If the case is primarily cost reduction, add a second entry with `kind: "cost"` so the cost-saving subtotal can also render as a percentage.
+`kind: "revenue"` makes this the denominator for the *% change to recurring revenue* subtotal in And. The subtotal renders in the case's granularity (`/mo`, `/qtr`, `/yr`, etc.) — pick a label that says *which* period. If the case is primarily cost reduction, add a second entry with `kind: "cost"` so the cost-saving subtotal can also render as a percentage.
 
 The formula uses the same syntax as `item.gross` — a product of assumption ids, with the same sandboxed helpers.
 
@@ -293,7 +302,7 @@ Each item must carry **≥3 specific attacks** as comments above it in `project.
 2. **Overlap** — is another initiative already booking part of this benefit?
 3. **Cash vs. soft** — does the dollar leave a budget line, or is it freed time that gets reabsorbed?
 4. **Adoption** — built ≠ used. What drives uptake?
-5. **Phase risk** — how conditional on prior phases landing?
+5. **Sequencing dependency** — is this benefit only available *after* earlier work in the project lands? (If yes, defer it with `startPeriod` and write the dependency into `desc`.)
 6. **Time-of-arrival** — what if it lands a year later than modelled?
 7. **Behavioural absorption** — are gains spent on more activity rather than banked?
 8. **Selection bias** — modelling the average case or the marginal case?
@@ -374,9 +383,12 @@ Implied current-state expressions, rendered under Now as live multiplication cha
 ```js
 baseline: [
   {
-    label: "Your annual revenue today",
-    formula: "proposals_per_year * (baseline_win_rate / 100) * avg_engagement_fee",
-    unit: "$/yr",
+    // Label, formula, and unit are all per-period in the case's granularity.
+    // Monthly case → "Your monthly revenue today", "$/mo".
+    // Yearly case  → "Your annual revenue today", "$/yr".
+    label: "Your monthly revenue today",
+    formula: "proposals_per_period * (baseline_win_rate / 100) * avg_engagement_fee",
+    unit: "$/mo",
     kind: "revenue",     // "revenue" → And uses this as the % denominator for revenue_uplift items
                          // "cost"    → ditto for cost_saving items
   },
@@ -402,8 +414,20 @@ risks: [
   id: "snake_case_id",            // referenced in formula strings
   label: "Human-readable label",  // shown in Now / And rows and popovers — write for a non-financial reader
   group: "Group name",            // groups together in the assumptions grid
-  value: 12,                      // numeric default
-  unit: "$" | "$/yr" | "$/hr" | "%" | "pp" | "hrs" | "/yr" | "/mo" | "events" | "yrs",
+  value: 12,                      // numeric default — expressed PER PERIOD in
+                                  //   the case's granularity (monthly case →
+                                  //   monthly value, weekly → weekly, etc.)
+
+  // Free-form unit string. Pick to match the case's granularity:
+  //   year   → "$/yr",  "/yr",  "hrs/yr"
+  //   quarter→ "$/qtr", "/qtr", "hrs/qtr"
+  //   month  → "$/mo",  "/mo",  "hrs/mo"
+  //   week   → "$/wk",  "/wk",  "hrs/wk"
+  //   day    → "$/d",   "/d",   "hrs/d"
+  // Stocks (one-off values) stay unit-free: "$", "%", "pp", "hrs", "events".
+  // The UI renders any "$/<suffix>" as `$<value><suffix>` automatically.
+  unit: "$/mo",
+
   step: 1,                        // editor step
   icon: "IconDollar",             // see icons below
 
