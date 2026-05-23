@@ -51,7 +51,7 @@ What you commit to change. Surfaces the **top 3 commitment assumptions** (those 
 A *Show the math* toggle reveals the per-benefit multiplication chains.
 
 ### Then
-The outcome. Three rows — Benefits / Costs / Total — with NPV pinned at the bottom and BCR/IRR as supporting figures.
+The outcome. Three rows — Benefits / Costs / Net — with the headline pinned at the bottom: **net cumulative ($) over the horizon** and **payback period** (the period where cumulative net first crosses zero). No NPV/IRR/PV — the page is nominal cashflows over the buyer's chosen timescale.
 
 ### Risks
 Bare-titles disclosure list. Each risk states one thing that could go wrong, grouped by `locus` (`"commitment"` = under our control, `"world"` = shared). No mitigation copy — that's implementation detail and lives in the proposal, not the BC.
@@ -101,7 +101,7 @@ The page's voice should sound like a competent colleague talking to them at lunc
 | Baseline | Current, today's, where things sit now |
 | Synergy | (just don't) |
 | Δ, ↑, pp, bps | Spell it out: "change in", "increase of", "percentage points", "hundredths of a percent" |
-| NPV / BCR / IRR | Don't write these in user-facing strings. The page expands them in the table with definitions on hover. |
+| NPV / BCR / IRR / discounted cashflow | Don't use these at all. The page is nominal cashflows; the headline is "you net $X over the next {horizon}" plus "payback at period N". |
 
 ### Naming patterns
 
@@ -181,17 +181,32 @@ Most BCs fail at the early steps, not at the math. Work through these in order.
 
 ### A. Frame the decision (ask once)
 
-Before any numbers, five facts must be clear. If any are unclear from the user's brief, **ask all of them in a single combined message**:
+Before any numbers, four facts must be clear. If any are unclear from the user's brief, **ask all of them in a single combined message**:
 
 - **The counterfactual.** Not "doing nothing" — usually "the cheapest credible alternative" (a different vendor, an internal team, a partial scope). The honest comparator.
 - **Decision audience.** A CFO needs different rigour than a champion's slide deck. The audience shapes the voice; don't drift mid-document.
-- **Time horizon, with a reason.** Why 3 years? Contract length? Tech lifecycle? Strategic plan? The number must come from somewhere.
 - **Who pays vs. who captures.** Agency mismatches (org A pays, org B benefits) kill otherwise-good projects.
 - **What "yes" unlocks.** Often the early work is infrastructure and the later phases unlock the bigger value but are conditional.
 
 Write the answers into `meta.description` so the framing is visible. Set `meta.shortName` — it's interpolated as the intervention's name everywhere.
 
-### B. Identify commitments vs. world facts
+### B. Pick the timescale (granularity + horizon)
+
+The decision's natural cadence sets `granularity` and `horizon` for the whole model. **Every formula, every assumption, every benefit and cost works in this unit** — no annualising, no monthly-vs-yearly fudging mid-case.
+
+| Granularity | When | Typical horizon | Example decisions |
+|---|---|---|---|
+| `"day"`     | A sprint, a triage exercise, a launch window | 14–60 days | Campaign push, incident response, hiring sprint |
+| `"week"`    | A quarter-ish project, a pilot           | 6–26 weeks | Sales coaching pilot, ops re-rostering trial |
+| `"month"`   | The default for SaaS / programme rollouts | 6–24 months | Tooling rollout, marketing programme, M&A integration |
+| `"quarter"` | Strategic programmes, OKR-aligned bets    | 4–16 quarters | Capability build, platform migration, channel expansion |
+| `"year"`    | Infrastructure, M&A, very long cycles     | 3–7 years | Plant build, multi-year contract, brand investment |
+
+Pick the unit that matches **how the buyer thinks about the decision**, not the largest unit the model can fit. A 12-month rollout modelled in years has a single Year-1 bar and tells you nothing about the ramp — model it monthly. A 5-year contract modelled monthly has 60 columns nobody can read — model it quarterly or yearly.
+
+`horizon` is then the *count of those units*. `granularity: "month", horizon: 18` = an 18-month case. Once set, **all flow assumptions are expressed in this unit**: if monthly, `revenue_per_period` is monthly revenue, never annual. The skill's job is to ask the user for figures in the chosen unit, or convert explicitly with an attribution note.
+
+### C. Identify commitments vs. world facts
 
 Every numeric input is one of two things:
 
@@ -200,7 +215,7 @@ Every numeric input is one of two things:
 
 Tag every assumption. Misclassifying wrecks the Now/And distinction.
 
-### C. Define the baseline expression
+### D. Define the baseline expression
 
 Write at least one `baseline[]` entry — what the world facts imply about the business today. The Now section renders it as a live multiplication chain that fills in as the buyer confirms each input.
 
@@ -217,7 +232,7 @@ Write at least one `baseline[]` entry — what the world facts imply about the b
 
 The formula uses the same syntax as `item.gross` — a product of assumption ids, with the same sandboxed helpers.
 
-### D. Compose benefits and costs
+### E. Compose benefits and costs
 
 For every item, write the four-step value chain in `desc`:
 
@@ -246,7 +261,7 @@ The chain is the **mechanism**. `gross` implements *that* chain — not a freela
 - Qualitative benefits have `gross: "0"`.
 - **Plain-language naming.** Every `name`, `label`, `title`, `desc`, and `description` follows the *Voice & writing rules* above. Don't relax for cost items, qualitative benefits, or scope-2/3 items — same rule everywhere.
 
-### E. Source every belief
+### F. Source every belief
 
 Every numeric assumption gets *one* of these sources, in priority order:
 
@@ -270,7 +285,7 @@ If results are thin or contradictory, prefer the lower estimate and note the unc
 
 **Sensitivity range.** Set `sensitivityRange: { lo, hi }` per assumption based on a *coherent low/high case*, not a generic ±25%. Lo is what a sceptical CFO would defend; hi is what the champion would defend. The page uses these for sensitivity attribution and as soft editor bounds.
 
-### F. Critique your own items
+### G. Critique your own items
 
 Each item must carry **≥3 specific attacks** as comments above it in `project.config.js`. The 10 lenses (pick the 3–5 most apt per item):
 
@@ -287,7 +302,7 @@ Each item must carry **≥3 specific attacks** as comments above it in `project.
 
 Critiques must be **specific**. Bad: *"this might not deliver as expected"*. Good: *"Code 87 dispute success depends more on legal precedent in airline contracts than on data quality — better evidence is necessary but not sufficient without legal-team capacity to act on it."*
 
-### G. Write risks
+### H. Write risks
 
 Three to five risks total. Each names *one thing that could go wrong*, in plain language a non-financial buyer would parse. **Title-only** — no mitigation, signal, trigger, or owner copy. Mitigation lives in the proposal, not the BC.
 
@@ -304,17 +319,17 @@ risks: [
 
 `locus` is either `"commitment"` (the implementer is accountable) or `"world"` (the world or the buyer could introduce it). `threatens` points at the assumption id the risk would falsify; the page filters risks to those relevant to scope-1.
 
-### H. Self-critique pass — `CRITIQUE.md`
+### I. Self-critique pass — `CRITIQUE.md`
 
 Before declaring done, produce `CRITIQUE.md` next to `project.config.js` answering in writing:
 
-1. *What's the weakest belief?* (Lowest source quality × biggest NPV impact.)
+1. *What's the weakest belief?* (Lowest source quality × biggest impact on net cumulative.)
 2. *What's the most likely double-count?*
 3. *What single dependency, if it slipped, would change the conclusion?*
 
 These are the questions a CFO will ask. Better to find them yourself first.
 
-### I. Pre-flight checklist
+### J. Pre-flight checklist
 
 Hard gates before declaring done:
 
@@ -343,9 +358,14 @@ meta: {
 }
 ```
 
-### `horizon`
+### `granularity` and `horizon`
 
-Integer — number of years the model runs over. Drives NPV and the per-year cashflow series.
+```js
+granularity: "day" | "week" | "month" | "quarter" | "year",
+horizon:     12,    // integer count of periods in the chosen granularity
+```
+
+Together they fix the cadence of the model. The cashflow series has `horizon` slots; the headline ("over the next 18 months, you net $X") reads off this unit. **All flow assumptions are expressed per-period in this granularity** — see Step 3 B. The skill picks both once, before any assumption is written.
 
 ### `baseline[]`
 
@@ -414,20 +434,33 @@ Icons: `IconDollar`, `IconUsers`, `IconPercent`, `IconBuilding`, `IconClock`, `I
   benefitKind: "revenue_uplift" | "cost_saving" | "qualitative",
                                           // qualitative items have gross: "0"
 
-  lump: false,                            // true → one-off in startYear; false → recurring across horizon
-  startYear: 1,                           // 1-indexed
+  lump: false,                            // true → one-off in startPeriod; false → recurring through horizon (or endPeriod)
+  startPeriod: 1,                         // 1-indexed period in the case's granularity. Use to defer items
+                                          //   (e.g. granularity: "month", startPeriod: 6 → benefit kicks in at month 6)
+  endPeriod: undefined,                   // optional 1-indexed last active period; default = horizon
 
   // Formula string, sandboxed. Allowed: assumption ids, math helpers
   // (pow, min, max, abs, log, sqrt, exp, floor, ceil, round, PI, E),
   // numeric literals, operators + - * / ( ) , .
-  gross: "proposals_per_year * (baseline_win_rate/100) * avg_engagement_fee * (pricing_uplift_pct/100)",
+  // The result is the item's value PER PERIOD in the case's granularity —
+  // not per year. If granularity is monthly, gross returns monthly value.
+  gross: "proposals_per_period * (baseline_win_rate/100) * avg_engagement_fee * (pricing_uplift_pct/100)",
 
   desc: "1–2 sentence value-chain mechanism (project action → world change → $ → who captures).",
-  uses: ["proposals_per_year", "baseline_win_rate", "avg_engagement_fee", "pricing_uplift_pct"],
+  uses: ["proposals_per_period", "baseline_win_rate", "avg_engagement_fee", "pricing_uplift_pct"],
 }
 ```
 
-**Engine math.** `gross(A)` is evaluated per year. If `lump: true`, the value sits in `startYear` only. If `lump: false`, it repeats from `startYear` through the horizon. PV is the sum of yearly values discounted by the `discount_rate` assumption. **No risk-adjustment waterfall, no cash/soft split — what `gross` produces is the value.** If you need risk-adjusted figures, encode the adjustment into the assumption values directly (e.g. multiply `pricing_uplift_pct` by an adoption probability).
+**Engine math.** `gross(A)` is evaluated as a per-period value. If `lump: true`, the value sits in `startPeriod` only. If `lump: false`, it repeats from `startPeriod` through `endPeriod` (or the horizon if `endPeriod` is unset). The headline is the **net cumulative** ($) over the horizon (sum of all benefits minus all costs, nominal — no discounting) and the **payback period** (the period where cumulative net first crosses zero, or `null` if it never does). **No discounting, no NPV/IRR, no risk waterfall, no cash/soft split.** If you need risk-adjusted figures, encode the adjustment into the assumption values directly (e.g. multiply `pricing_uplift_pct` by an adoption probability).
+
+**Deferring an item.** Benefits rarely materialise the moment a project ships. Don't fudge a smaller value — defer the start with `startPeriod`:
+
+- **Tooling reps must learn** (sales coaching, ops automation that depends on user behaviour): start 3–6 months in.
+- **Habits or culture changes** (BC discipline on proposals, new review rituals): start 6–12 months in.
+- **Compounding patterns** (codified playbooks, brand effects, referrals): start 12–24 months in.
+- **Instant value** (a cost saving from day one, a one-off rebate): `startPeriod: 1`.
+
+Same applies to costs that ramp on (licences rolled out one team at a time → defer to when each cohort starts; or split into multiple cost items with different start periods).
 
 ## Step 4 — Run
 
