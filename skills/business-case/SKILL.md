@@ -311,25 +311,120 @@ Each item must carry **≥3 specific attacks** as comments above it in `project.
 
 Critiques must be **specific**. Bad: *"this might not deliver as expected"*. Good: *"Code 87 dispute success depends more on legal precedent in airline contracts than on data quality — better evidence is necessary but not sufficient without legal-team capacity to act on it."*
 
-### H. Write risks
+### H. Identify risks — the assumption-based guideword sweep
 
-Three to five risks total. Each names *one thing that could go wrong*, in plain language a non-financial buyer would parse. **Title-only** — no mitigation, signal, trigger, or owner copy. Mitigation lives in the proposal, not the BC.
+Don't brainstorm risks. Brainstorming surfaces the risks everyone already sees and misses the ones that move the decision. **Interrogate the model you just built.** Every risk is a *named failure mode of a load-bearing assumption* — the model tells you where to look and how much each candidate is worth. The buyer-facing output stays exactly as lean as before: **title-only, grouped by locus, no mitigation.** The sweep produces a richer object underneath (the Risk Event Card anatomy) that is carried author-side and stripped at share time — the recipient never receives it.
+
+#### H.0 — Draw the materiality line (read the tornado)
+
+Materiality is **`computeSensitivity(...).range`** — the dollar net-swing across each assumption's `sensitivityRange`. **Do NOT hand-derive it:** `sensitivityRange.lo`/`.hi` are *multipliers* on the value (`{lo:0.5, hi:2.0}` is a 4× span), and materiality folds in both the range AND how hard the model leans on the input — read it off the rendered tornado, never reconstruct it.
+
+1. Rank assumptions by sensitivity (the tornado does this).
+2. **Load-bearing line:** keep every scope-1-relevant assumption whose net-swing is ≥10% of the case's primary benefit, capped at the top ~6. If a single assumption dominates, lower the line until ≥3 inputs are in scope and flag *fragile-by-concentration* in `CRITIQUE.md`.
+3. Write the kept set in rank order — this is your **load-bearing universe** and your control flow. State it: *"These N assumptions carry the case. I'll name a failure mode for each; the rest I consciously don't interrogate."*
+
+#### H.1 — The guideword sweep (HAZOP by source)
+
+For each load-bearing assumption, sweep the fixed guideword set, grouped by **source**:
+
+| Source | Guidewords (the question each asks of the assumption) |
+|---|---|
+| **intervention** (the idea is wrong) | `weaker-or-absent` (the lever barely/doesn't move the outcome) · `already-happening` (it'd arrive anyway) · `double-counted` (booked elsewhere) · `won't-bank` (real but never reaches the P&L) · `can't-measure` (we can't observe/confirm it; gameable) · `second-order-cancels` (a side-effect eats it) |
+| **execution** (we can't deliver/adopt) | `costs-more` · `arrives-late` · `won't-adopt` · `can't-staff` · `gets-deprioritised` (loses funding/sponsorship before value lands) · `degrades` (decays across the horizon) |
+| **environment** (the world shifts) | `demand-shifts` · `competitor-responds` · `rules-change` · `input-cost-moves` · `counterparty-fails` |
+
+Visit every cell for every load-bearing assumption; most cells are "not material / not plausible here" and saying so is the point. **An empty source bucket is a prompt, not a pass** — re-sweep it once. If still empty, that IS the answer: record a one-line reason in `CRITIQUE.md` (e.g. *"pure internal-efficiency case — no external party can move these numbers"*). **Never fabricate a risk to fill a bucket** — a pure-internal initiative should legitimately be all-preventable.
+
+**Then run the FRAME sweep ONCE over the whole case** (risks that aren't a movement in any existing assumption):
+- `omitted` — a value-driver with no assumption at all (name the missing variable).
+- `coupled` — two+ load-bearing assumptions that fail together via one common driver (one recession, one platform, one counterparty). Set `threatensAlso: [the second id]`; the downside isn't the sum of independent swings.
+- `irreversible` — a cost that can't be unwound once committed.
+- `outside-view` — the base rate for this archetype ("projects of this kind usually disappoint by X%").
+
+#### H.1a — Archetype priming
+
+Pick the initiative archetype and append its primers to the relevant source buckets (they bias the sweep, they don't replace the base set). `(int/exec/env)` = the source it lands in:
+
+- **acquire** — synergy-realization(int) · culture-clash(exec) · key-person-flight(exec) · integration-overrun(exec) · diligence-gap(int) · overpayment(int) · customer-attrition(env)
+- **build** — scope-creep(exec) · tech-risk(int) · adoption(exec) · maintenance-tail(exec) · obsolescence(env) · build-vs-buy-inversion(int)
+- **buy-vs-build** — vendor-lock-in(env) · total-cost-of-ownership(int) · capability-erosion(exec) · vendor-viability(env) · customisation-gap(exec)
+- **market-entry** — demand-validation(int) · regulatory-barrier(env) · channel-access(exec) · incumbent-response(env) · localisation-cost(exec) · ramp-time(exec) · unit-economics-don't-translate(int)
+- **transformation** — change-fatigue(exec) · benefits-leakage(int) · transition-disruption(exec) · sponsor-loss(exec) · sequencing-dependency(exec) · baseline-drift(int)
+- **pricing-or-GTM** — elasticity-miss(int) · competitor-matching(env) · channel-conflict(exec) · mix-shift(int) · discount-leakage(exec) · segment-backlash(env)
+- **marketing-campaign** — participation(exec) · incrementality(int) · backlash-tail(env) · platform-dependency(env) · creative-fatigue(exec) · attribution-error(int)
+- **cost-takeout/efficiency** — savings-rebanked(int) · baseline-inflated(int) · capacity-not-redeployable(int) · one-off-not-recurring(int) · morale-attrition(exec) · volume-grows-anyway(env)
+- **compliance** — scope-expands(env) · enforcement-uncertainty(env) · over-engineering(exec) · no-do-downside-mismeasured(int)
+
+The last two — **cost-takeout/efficiency** and **compliance** — are CBAgent's most common shapes; the growth archetypes actively mislead on them. No archetype match → sweep the base set only. Spans two → append both and de-dup in the judge step.
+
+#### H.2 — Generate candidates with diversity (the non-obvious pass)
+
+The first failure mode you think of is the obvious one, and obvious risks are low-value. Run these scaffolds **in your own reasoning — no tool, no API, no embedding; the clustering is your own judgment in-session.** For each load-bearing assumption:
+
+**(a) Sample distinct mechanisms.** *"List 3 distinct ways `<assumption>` reaches its sceptical-CFO `lo` case. Make at least one a mechanism a domain expert would call surprising — not the first thing said in the room. For each, name the specific real-world event (a Tuesday-morning thing, not a metric drifting) that would tell us it's happening."* This pushes past the obvious; it is NOT a likelihood estimate — `likelihood` stays `null`.
+
+**(b) Rotate ordinary-stakeholder lenses.** Look at the same assumption through each of these **ordinary operating roles** (not celebrity/genius personas — those collapse to the archetype), feeding each the assumption's `description`/`rationale`/`source` and the case `meta`:
+- the frontline ops lead who makes it work day-to-day,
+- the sceptical CFO who's seen this promised before,
+- the customer on the other end of the change,
+- legal/compliance counsel,
+- the *named* competitor who'd be hurt most (use a proper noun),
+- the *specific* regulator/standard that governs this domain (name it).
+
+Each gets one sentence. Discard immaterial ones; keep distinct events.
+
+**(c) Anti-fixation.** *"List them all. Force each genuinely distinct — no two share a mechanism. Where two collapse, keep the sharper phrasing. Where I wrote a metric instead of an event, rewrite it as the event."*
+
+**(d) Judge to a diverse material subset.** *"Cluster by underlying mechanism. From each cluster keep the single sharpest, most material one. Keep the set small, distinct, and spanning the case's real exposure — maximise spread across MECHANISMS (not a source quota). Preserve at least one tail/non-obvious risk even if a more-obvious candidate scores higher on bare materiality — the page should carry the buyer's blind spot, not just confirm their fears."*
+
+#### H.3 — Screen: materiality × decision-relevance
+
+A candidate survives only if BOTH hold:
+1. **Material** — threatens a load-bearing assumption that appears in the tornado (numeric, has a `sensitivityRange`). If a persona surfaced a risk targeting a below-line or non-numeric input, re-point `threatens` at the load-bearing numeric assumption the failure actually moves, or drop it.
+2. **Decision-relevant** — *would a buyer who believed this could happen still say yes?* This admits low-probability/high-impact tail risks that don't flip the expected case but would flip a risk-averse buyer.
+
+#### H.4 — Classify (source + Kaplan–Mikes category)
+
+- `source` — `intervention`|`execution`|`environment`, from the guideword's column. Drives the fingerprint.
+- `category` — Kaplan & Mikes class: `preventable` (internal, no upside → rules/controls), `strategy` (taken for return → monitor), `external` (uncontrollable → scenario). The category-routing UI is deferred, but author it now so it's ready.
+- **`locus` is NOT authored** — the engine derives it from the threatened assumption's `controllable` flag. Leaving it off is fine.
+
+#### H.5 — Author the Risk Event Card
+
+Each survivor → one `risks[]` entry. The buyer page reads **only `title`**; everything else is author-side and stripped at share time.
 
 ```js
 risks: [
-  { title: "Writing business cases keeps taking longer than 4 hours",
-    locus: "commitment", source: "execution",
-    threatens: "bc_hrs_per_proposal" },
-  { title: "Buyers refuse to pay on outcomes — they want a day rate",
-    locus: "world", source: "environment",
-    threatens: "pricing_uplift_pct" },
-  { title: "Better-looking proposals don't actually move win-rate",
-    locus: "commitment", source: "intervention",
-    threatens: "win_rate_uplift" },
+  {
+    title: "Buyers refuse to pay on outcomes — they want a day rate",  // buyer-visible, plain, an EVENT not a metric
+    threatens: "pricing_uplift_pct",        // the assumption it falsifies = the strategic objective
+    source: "environment",                  // intervention|execution|environment (set explicitly for intervention)
+    category: "external",                   // preventable|strategy|external
+    guideword: "demand-shifts",             // audit trail
+    // threatensAlso: ["input_cost_idx"],   // only for `coupled`/common-cause risks
+    outcomes: "Deals close on a day rate; the price-lift line goes to zero.",   // author-side only, stripped at share
+    signposts: ["Two of next five RFQs specify day rates", "procurement asks for a rate card"],  // author-side only
+    likelihood: null,                       // 1–5 BUYER-rated; NEVER fabricate. null = unrated.
+    // likelihoodPrior: 2,                   // optional author guess — never counts as assessed/critical
+  },
 ]
 ```
 
-`locus` is either `"commitment"` (the implementer is accountable) or `"world"` (the world or the buyer could introduce it) — it drives the page's commitment/world risk framing. `source` is the *origin* of the risk and drives the portfolio dashboard's risk fingerprint: `"intervention"` (the idea/mechanism itself is wrong), `"execution"` (we or the org can't deliver or adopt it), or `"environment"` (the market/context shifts). If omitted, `source` falls back from `locus` (commitment → execution, world → environment) — so **set it explicitly when a risk is really about the *idea*** (intervention), which the locus binary can't express. `threatens` points at the assumption id the risk would falsify; the page filters risks to those relevant to scope-1, and the dashboard weights each by that assumption's sensitivity (so a risk on a load-bearing input counts for more).
+Impact is NOT stored — it's read live off the tornado (sensitivity of `threatens`). Prefer **one risk per assumption per source**; a second on the same assumption adds to the count but not the exposure bar (value-at-risk is counted once per assumption). For an assumption you consciously clear, add `{ threatens: "<id>", noMaterialRisk: true }` (no title — it never renders or counts; it just satisfies coverage).
+
+#### H.checkpoint-1 — Author confirms materiality & plausibility *(human-in-the-loop)*
+
+Batch the candidate list to the author: *"From your model, these failure modes each put net at risk (ranked by your own sensitivity numbers): (1)… (2)… Two questions: are any not plausible in your world — drop them? And is there one I missed that keeps you up at night?"* Apply edits; run any addition back through H.2–H.4. **At most one round of additions.**
+
+#### H.checkpoint-2 — Buyer rates likelihood *(human-in-the-loop)*
+
+`likelihood` is the buyer's judgment, never yours. Leave every `likelihood: null` unless the author gives a specific 1–5. A risk with `likelihood: null` is correctly "impact-known, likelihood-unrated" — the honest state. A risk becomes **critical** (the dashboard count) only when it threatens a load-bearing scope-1 assumption AND the buyer rated likelihood ≥3.
+
+#### H.6 — Stop & coverage self-check
+
+Done when: every load-bearing assumption has a named risk or a `noMaterialRisk` mark; every source bucket is swept (empty buckets justified after at most one re-sweep, not defaulted); the frame sweep ran; 3–5 risks survive with at least one tail risk preserved; and the highest-sensitivity scope-1 assumption has a named risk. Run the coverage prompt: *"My highest-sensitivity assumption is `<top tornado id>` — does it have a risk? If the most load-bearing input has none, that's confirmation bias, not safety. Re-sweep it."* The studio shows the same gap as an author-only prompt — never to the buyer.
+
+**Why this shape (12-factor / diversity):** F8 fixed ordered sweep with bounded re-entry (one re-sweep per bucket, one round of additions). F3 you feed your own reasoning only the ranked assumptions + guidewords + archetype + each assumption's description/rationale. F4 every risk is a validated structured object. F7 two human checkpoints — which risks are material/plausible, and the buyer's likelihood; you fabricate neither. F5/F12 risks live in `project.config.js`; `computeRiskModel` is the stateless reducer. Diversity: verbalised distinct-mechanism sampling, ordinary-persona rotation, anti-fixation, and in-session self-judging dedup are the no-API substitute for surfacing the tail risks that change the decision.
 
 ### I. Self-critique pass — `CRITIQUE.md`
 
@@ -349,7 +444,7 @@ Hard gates before declaring done:
 - `meta.description` written, frames the decision (counterfactual / audience / horizon / payer-vs-capturer / what-yes-unlocks).
 - 1–3 benefits tagged `scope: 1`, each referencing a `controllable: true` assumption in its `gross`.
 - At least one `baseline[]` entry with `kind: "revenue"`. Add `kind: "cost"` if the case is primarily cost reduction.
-- 3–5 risks defined, plain language, with `locus` and `threatens`.
+- 3–5 risks defined via the Phase-H guideword sweep — each with `title` + `threatens`, `source` + `category` set. **Coverage gate:** every load-bearing assumption (net swing ≥10% of primary benefit) has a named risk or a `noMaterialRisk` mark; the single highest-sensitivity scope-1 assumption is covered; the studio coverage prompt is clear; every source bucket was swept (empty ones justified in `CRITIQUE.md`, not fabricated).
 - Every assumption has: `source`, `description`, `sensitivityRange`, and a `controllable` flag (true or explicit false).
 - Every item has: a value-chain `desc`, `uses[]`, and ≥3 specific critiques as comments above it.
 - `CRITIQUE.md` exists.
@@ -403,12 +498,25 @@ baseline: [
 ```js
 risks: [
   {
-    title: "Plain-language statement of what could go wrong.",
-    locus: "commitment" | "world",            // page framing (we own / shared)
-    source: "intervention" | "execution" | "environment",  // optional; dashboard fingerprint. Defaults from locus.
-    threatens: "assumption_id",   // assumption this risk would falsify
+    // ── shown to the BUYER (title-only) ──
+    title: "Plain-language statement of what could go wrong.",   // REQUIRED, an EVENT not a metric
+    threatens: "assumption_id",      // REQUIRED — assumption it falsifies; impact = its sensitivity
+    // ── categorization (optional; engine derives if absent) ──
+    source: "intervention" | "execution" | "environment",  // drives the fingerprint; set explicitly for intervention
+    category: "preventable" | "strategy" | "external",     // Kaplan–Mikes governance class
+    guideword: "demand-shifts",      // audit trail of which sweep cell produced it
+    threatensAlso: ["other_id"],     // only for `coupled`/common-cause risks
+    // ── Risk Event Card body — AUTHOR-SIDE ONLY, stripped at share time ──
+    outcomes: "What happens to the value if it fires.",
+    signposts: ["leading indicator A", "leading indicator B"],
+    likelihood: null,                // 1–5, BUYER-rated; null = unrated. NEVER author-fabricated.
+    // likelihoodPrior: 2,           // optional author guess — never counts as assessed/critical
+    // owner: "name",                // accountable; proposal-side
+    // noMaterialRisk: true,         // with threatens only (no title) → marks an assumption consciously cleared
   },
 ]
+// `locus` is NOT authored — the engine derives it from threatens.controllable.
+// `id` is auto-derived; set it only if you want it stable across edits (buyer likelihood ratings).
 ```
 
 ### `assumptions[]`
