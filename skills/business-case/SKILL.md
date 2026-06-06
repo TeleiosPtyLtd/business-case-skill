@@ -318,15 +318,18 @@ Three to five risks total. Each names *one thing that could go wrong*, in plain 
 ```js
 risks: [
   { title: "Writing business cases keeps taking longer than 4 hours",
-    locus: "commitment",
+    locus: "commitment", source: "execution",
     threatens: "bc_hrs_per_proposal" },
   { title: "Buyers refuse to pay on outcomes — they want a day rate",
-    locus: "world",
+    locus: "world", source: "environment",
     threatens: "pricing_uplift_pct" },
+  { title: "Better-looking proposals don't actually move win-rate",
+    locus: "commitment", source: "intervention",
+    threatens: "win_rate_uplift" },
 ]
 ```
 
-`locus` is either `"commitment"` (the implementer is accountable) or `"world"` (the world or the buyer could introduce it). `threatens` points at the assumption id the risk would falsify; the page filters risks to those relevant to scope-1.
+`locus` is either `"commitment"` (the implementer is accountable) or `"world"` (the world or the buyer could introduce it) — it drives the page's commitment/world risk framing. `source` is the *origin* of the risk and drives the portfolio dashboard's risk fingerprint: `"intervention"` (the idea/mechanism itself is wrong), `"execution"` (we or the org can't deliver or adopt it), or `"environment"` (the market/context shifts). If omitted, `source` falls back from `locus` (commitment → execution, world → environment) — so **set it explicitly when a risk is really about the *idea*** (intervention), which the locus binary can't express. `threatens` points at the assumption id the risk would falsify; the page filters risks to those relevant to scope-1, and the dashboard weights each by that assumption's sensitivity (so a risk on a load-bearing input counts for more).
 
 ### I. Self-critique pass — `CRITIQUE.md`
 
@@ -401,7 +404,8 @@ baseline: [
 risks: [
   {
     title: "Plain-language statement of what could go wrong.",
-    locus: "commitment" | "world",
+    locus: "commitment" | "world",            // page framing (we own / shared)
+    source: "intervention" | "execution" | "environment",  // optional; dashboard fingerprint. Defaults from locus.
     threatens: "assumption_id",   // assumption this risk would falsify
   },
 ]
