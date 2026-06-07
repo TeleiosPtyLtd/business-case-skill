@@ -36,6 +36,8 @@ rm -rf .git
 
 If `<slug>/project.config.js` already exists, **edit instead of re-cloning**.
 
+**Mint a stable `meta.caseKey`.** When you first author the config, set `meta.caseKey` to `<slug>-<6 random hex>` (e.g. `acme-pricing-tool-9f3a21`). This is the idempotency anchor that lets a signed-in author's case **auto-register to their portfolio at `/mine` as a private draft** the moment it loads — no Share click, no public link. **On a re-run or edit, PRESERVE the existing `meta.caseKey` — never regenerate it** (a new key would spawn a duplicate `/mine` row). Rule of thumb: *if `meta.caseKey` exists, leave it; if not, mint one.* The skill plants the key and nothing else here — the browser does the (silent, signed-in-only) registration and the server owns identity; an unauthenticated build simply does nothing.
+
 ## Step 2 — Understand the page so you can author for it
 
 The page is a four-section rhetorical proof. Your config drives each section directly. Knowing what each section *does* tells you what each field is *for*.
@@ -54,7 +56,7 @@ Both subtotals are read off the case's granularity (a monthly case shows monthly
 The outcome. Three rows — Benefits / Costs / Net — with the headline pinned at the bottom: **net cumulative ($) over the horizon** and **payback period** (the period where cumulative net first crosses zero). No NPV/IRR/PV — the page is nominal cashflows over the buyer's chosen timescale.
 
 ### Risks
-Bare-titles disclosure list. Each risk states one thing that could go wrong, grouped by `locus` (`"commitment"` = under our control, `"world"` = shared). No mitigation copy — that's implementation detail and lives in the proposal, not the BC.
+A **coverage matrix** drawn from the guideword sweep: rows are the load-bearing drivers behind the headline, columns are the three failure sources (**Strategy / Execution / Environment**), split into two responsibility groups (**Under our control** / **Outside our control**). A warm cell means a risk was found there (heat = value-at-risk); a green cell means that driver was swept and cleared; critical cells are labelled in-cell. Hovering or clicking a cell drives a **master-detail panel** beneath the matrix showing that risk's **Title**, **Stake** (the quantified downside, read live off sensitivity), **Plausibility** (the buyer's 1–5 rating), and **Suggestion** (the `mitigation` — the control we'd put in place). A collapsible "all identified risks, in full" list reads everything in one pass. Cleared drivers carry a one-line `note` shown on hover. The recipient sees all of this — `mitigation` and `note` are buyer-visible and cross the wire; only the deep Risk Event Card body (`outcomes`/`signposts`/`owner`/`likelihoodPrior`) stays author-side.
 
 ## Voice & writing rules
 
@@ -313,7 +315,7 @@ Critiques must be **specific**. Bad: *"this might not deliver as expected"*. Goo
 
 ### H. Identify risks — the assumption-based guideword sweep
 
-Don't brainstorm risks. Brainstorming surfaces the risks everyone already sees and misses the ones that move the decision. **Interrogate the model you just built.** Every risk is a *named failure mode of a load-bearing assumption* — the model tells you where to look and how much each candidate is worth. The buyer-facing output stays exactly as lean as before: **title-only, grouped by locus, no mitigation.** The sweep produces a richer object underneath (the Risk Event Card anatomy) that is carried author-side and stripped at share time — the recipient never receives it.
+Don't brainstorm risks. Brainstorming surfaces the risks everyone already sees and misses the ones that move the decision. **Interrogate the model you just built.** Every risk is a *named failure mode of a load-bearing assumption* — the model tells you where to look and how much each candidate is worth. The buyer-facing output is a **coverage matrix + master-detail panel** that surfaces each risk's title, Stake, Plausibility and **Suggestion (`mitigation`)**, plus the swept-and-cleared drivers (each with a one-line `note`). The sweep still produces a richer object underneath (the Risk Event Card anatomy); only its deep body (`outcomes`/`signposts`/`owner`/`likelihoodPrior`) is carried author-side and stripped at share time — **`mitigation` and `note` are now buyer-visible** (the recipient is meant to see the controls and the coverage, not just the headlines).
 
 #### H.0 — Draw the materiality line (read the tornado)
 
@@ -391,7 +393,7 @@ A candidate survives only if BOTH hold:
 
 #### H.5 — Author the Risk Event Card
 
-Each survivor → one `risks[]` entry. The buyer page reads **only `title`**; everything else is author-side and stripped at share time.
+Each survivor → one `risks[]` entry. The buyer page reads **`title`** (the event), **`threatens`** (drives the live Stake), **`likelihood`** (Plausibility), and **`mitigation`** (the Suggestion — the control). The deep card body (`outcomes`/`signposts`/`owner`/`likelihoodPrior`) stays author-side and is stripped at share time.
 
 ```js
 risks: [
@@ -402,6 +404,7 @@ risks: [
     category: "external",                   // preventable|strategy|external
     guideword: "demand-shifts",             // audit trail
     // threatensAlso: ["input_cost_idx"],   // only for `coupled`/common-cause risks
+    mitigation: "Lead with outcome-based scoping and a published rate floor; qualify out pure day-rate buyers early.",  // BUYER-VISIBLE Suggestion — the control we'd put in place. Shape it by source: prevent (execution) / monitor & pivot (intervention) / hedge & prepare (environment).
     outcomes: "Deals close on a day rate; the price-lift line goes to zero.",   // author-side only, stripped at share
     signposts: ["Two of next five RFQs specify day rates", "procurement asks for a rate card"],  // author-side only
     likelihood: null,                       // 1–5 BUYER-rated; NEVER fabricate. null = unrated.
@@ -410,7 +413,7 @@ risks: [
 ]
 ```
 
-Impact is NOT stored — it's read live off the tornado (sensitivity of `threatens`). Prefer **one risk per assumption per source**; a second on the same assumption adds to the count but not the exposure bar (value-at-risk is counted once per assumption). For an assumption you consciously clear, add `{ threatens: "<id>", noMaterialRisk: true }` (no title — it never renders or counts; it just satisfies coverage).
+Impact is NOT stored — it's read live off the tornado (sensitivity of `threatens`). Prefer **one risk per assumption per source**; a second on the same assumption adds to the count but not the exposure bar (value-at-risk is counted once per assumption). For an assumption you consciously clear, add `{ threatens: "<id>", noMaterialRisk: true, note: "<one line: why this driver isn't a material risk>" }` — no title, so it never renders as a risk or counts; instead it draws a **green swept-clear cell** in the coverage matrix whose hover shows the `note`. The cleared `note` is buyer-visible (it's how the recipient sees that the driver was checked, not skipped), so write it in plain buyer language.
 
 #### H.checkpoint-1 — Author confirms materiality & plausibility *(human-in-the-loop)*
 
@@ -444,7 +447,7 @@ Hard gates before declaring done:
 - `meta.description` written, frames the decision (counterfactual / audience / horizon / payer-vs-capturer / what-yes-unlocks).
 - 1–3 benefits tagged `scope: 1`, each referencing a `controllable: true` assumption in its `gross`.
 - At least one `baseline[]` entry with `kind: "revenue"`. Add `kind: "cost"` if the case is primarily cost reduction.
-- 3–5 risks defined via the Phase-H guideword sweep — each with `title` + `threatens`, `source` + `category` set. **Coverage gate:** every load-bearing assumption (net swing ≥10% of primary benefit) has a named risk or a `noMaterialRisk` mark; the single highest-sensitivity scope-1 assumption is covered; the studio coverage prompt is clear; every source bucket was swept (empty ones justified in `CRITIQUE.md`, not fabricated).
+- 3–5 risks defined via the Phase-H guideword sweep — each with `title` + `threatens`, `source` + `category` set, and a buyer-visible **`mitigation`** (the Suggestion/control, shaped by source). **Coverage gate:** every load-bearing assumption (net swing ≥10% of primary benefit) has a named risk or a `noMaterialRisk` mark **carrying a one-line `note`**; the single highest-sensitivity scope-1 assumption is covered; the studio coverage prompt is clear; every source bucket was swept (empty ones justified in `CRITIQUE.md`, not fabricated).
 - Every assumption has: `source`, `description`, `sensitivityRange`, and a `controllable` flag (true or explicit false).
 - Every item has: a value-chain `desc`, `uses[]`, and ≥3 specific critiques as comments above it.
 - `CRITIQUE.md` exists.
@@ -462,6 +465,10 @@ meta: {
   name: "Full project title",                        // long form
   shortName: "BC discipline",                        // interpolated everywhere
   description: "Paragraph that frames the decision.",
+  caseKey: "bc-discipline-9f3a21",                   // stable per-case key: <slug>-<6 hex>. Mint once,
+                                                     //   preserve on edit. Enables silent auto-register
+                                                     //   to /mine (private draft) when the author is
+                                                     //   signed in. Absent → auto-register disabled.
 }
 ```
 
@@ -498,21 +505,22 @@ baseline: [
 ```js
 risks: [
   {
-    // ── shown to the BUYER (title-only) ──
+    // ── shown to the BUYER (coverage matrix + master-detail panel) ──
     title: "Plain-language statement of what could go wrong.",   // REQUIRED, an EVENT not a metric
-    threatens: "assumption_id",      // REQUIRED — assumption it falsifies; impact = its sensitivity
+    threatens: "assumption_id",      // REQUIRED — assumption it falsifies; drives the live Stake + the matrix row
+    mitigation: "The control we'd put in place.",  // buyer-visible Suggestion; shape by source — prevent (execution) / monitor & pivot (intervention) / hedge & prepare (environment)
+    likelihood: null,                // 1–5, BUYER-rated; null = unrated. NEVER author-fabricated. Shown as Plausibility; persists across share.
     // ── categorization (optional; engine derives if absent) ──
-    source: "intervention" | "execution" | "environment",  // drives the fingerprint; set explicitly for intervention
+    source: "intervention" | "execution" | "environment",  // the matrix COLUMN; set explicitly for intervention
     category: "preventable" | "strategy" | "external",     // Kaplan–Mikes governance class
     guideword: "demand-shifts",      // audit trail of which sweep cell produced it
     threatensAlso: ["other_id"],     // only for `coupled`/common-cause risks
     // ── Risk Event Card body — AUTHOR-SIDE ONLY, stripped at share time ──
     outcomes: "What happens to the value if it fires.",
     signposts: ["leading indicator A", "leading indicator B"],
-    likelihood: null,                // 1–5, BUYER-rated; null = unrated. NEVER author-fabricated.
     // likelihoodPrior: 2,           // optional author guess — never counts as assessed/critical
     // owner: "name",                // accountable; proposal-side
-    // noMaterialRisk: true,         // with threatens only (no title) → marks an assumption consciously cleared
+    // noMaterialRisk: true, note: "why it's cleared",  // threatens + note, NO title → draws a green swept-clear matrix cell; note is the buyer-visible hover reason
   },
 ]
 // `locus` is NOT authored — the engine derives it from threatens.controllable.
